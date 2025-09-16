@@ -1,0 +1,51 @@
+export const data = [
+  {
+    fileName: "leaf_001.jpg",
+    prediction: "infected",
+    confidence: 0.94,
+    disease: "Powdery Mildew",
+    recommendation: "Apply a sulfur-based fungicide and prune affected areas.",
+    notes:
+      "White powdery spots detected on surface — classic symptom of mildew.",
+  },
+  {
+    fileName: "leaf_002.jpg",
+    prediction: "healthy",
+    confidence: 0.98,
+    disease: "None",
+    recommendation: "No action needed. Keep monitoring weekly.",
+    notes: "Leaf shows normal coloration and texture with no visible lesions.",
+  },
+  {
+    fileName: "leaf_003.jpg",
+    prediction: "infected",
+    confidence: 0.89,
+    disease: "Leaf Spot",
+    recommendation: "Remove affected leaves and improve air circulation.",
+    notes: "Circular brown-black spots with yellow halos detected.",
+  },
+  {
+    fileName: "leaf_004.jpg",
+    prediction: "infected",
+    confidence: 0.91,
+    disease: "Rust Fungus",
+    recommendation: "Use a fungicide and avoid overhead watering.",
+    notes: "Rust-colored pustules observed on underside of leaf.",
+  },
+  {
+    fileName: "leaf_005.jpg",
+    prediction: "healthy",
+    confidence: 0.96,
+    disease: "None",
+    recommendation: "Maintain current watering and fertilization routine.",
+    notes: "Vibrant green color with no visible damage.",
+  },
+  {
+    fileName: "leaf_006.jpg",
+    prediction: "infected",
+    confidence: 0.87,
+    disease: "Bacterial Blight",
+    recommendation: "Isolate the plant and treat with a copper-based spray.",
+    notes: "Dark water-soaked lesions and wilting edges identified.",
+  },
+];
