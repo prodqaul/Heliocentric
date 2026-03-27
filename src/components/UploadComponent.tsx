@@ -368,7 +368,7 @@ const UploadComponent: React.FC = () => {
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(16,185,129,0.12),transparent_55%)] animate-pulse" />
                   </div>
                   <span className="text-white font-medium bg-black/75 border border-emerald-400/50 px-4 py-2 rounded-full text-sm md:text-base shadow-lg shadow-emerald-500/20">
-                    Analyzing leaf image...
+                    Analyzing the image...
                   </span>
                 </div>
               )}
@@ -438,7 +438,7 @@ const UploadComponent: React.FC = () => {
                     : "bg-gradient-to-r from-emerald-700 to-green-600 hover:from-emerald-600 hover:to-green-500"
                 }`}
               >
-                {isLoading ? "Analyzing..." : "Analyze Leaf"}
+                {isLoading ? "Analyzing..." : "Analyze the image"}
               </button>
             </div>
 
