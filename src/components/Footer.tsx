@@ -2,9 +2,9 @@ import React from "react";
 
 const Footer: React.FC = () => {
   return (
-    <footer className="w-full px-8 py-4 bg-zinc-900 text-white flex items-center justify-center mt-auto">
-      <span className="text-sm font-mono">
-        &copy; {new Date().getFullYear()} Heliocentric. All rights reserved.
+    <footer className="w-full px-6 md:px-10 py-5 border-t border-white/10 bg-slate-950/80 text-slate-200 flex items-center justify-center mt-auto">
+      <span className="text-xs md:text-sm tracking-wide">
+        &copy; {new Date().getFullYear()} Heliocentric · AI-powered crop care
       </span>
     </footer>
   );

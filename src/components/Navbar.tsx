@@ -1,11 +1,42 @@
 import React from "react";
 
-const Navbar: React.FC = () => {
+type NavbarProps = {
+  activePage: "home" | "support";
+  onNavigate: (page: "home" | "support") => void;
+};
+
+const Navbar: React.FC<NavbarProps> = ({ activePage, onNavigate }) => {
   return (
-    <nav className="w-full px-8 py-4 bg-zinc-900 text-white shadow flex items-center fixed top-0 z-50">
-      <span className="font-bold text-2xl tracking-wide font-mono">
-        Heliocentric
-      </span>
+    <nav className="w-full px-6 md:px-10 py-4 border-b border-white/10 bg-slate-950/85 backdrop-blur-xl text-white fixed top-0 z-50">
+      <div className="max-w-7xl mx-auto flex items-center justify-between">
+        <span className="font-bold text-xl md:text-2xl tracking-wide">
+          Heliocentric
+        </span>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onNavigate("home")}
+            className={`text-xs md:text-sm px-3 py-1 rounded-full border transition ${
+              activePage === "home"
+                ? "text-emerald-100 bg-emerald-500/25 border-emerald-400/40"
+                : "text-slate-200 bg-slate-800/50 border-slate-600/50 hover:bg-slate-700/60"
+            }`}
+          >
+            Home
+          </button>
+          <button
+            type="button"
+            onClick={() => onNavigate("support")}
+            className={`text-xs md:text-sm px-3 py-1 rounded-full border transition ${
+              activePage === "support"
+                ? "text-emerald-100 bg-emerald-500/25 border-emerald-400/40"
+                : "text-slate-200 bg-slate-800/50 border-slate-600/50 hover:bg-slate-700/60"
+            }`}
+          >
+            Support
+          </button>
+        </div>
+      </div>
     </nav>
   );
 };

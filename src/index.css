@@ -1,6 +1,45 @@
 @import "tailwindcss";
 
-@keyframes scan {
-  0%   { transform: translateY(0); }
-  100% { transform: translateY(100%); }
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  background: #020617;
+}
+
+@keyframes scan-beam-vertical {
+  0% {
+    top: -56px;
+  }
+  100% {
+    top: calc(100% - 56px);
+  }
+}
+
+@keyframes scan-line-vertical {
+  0% {
+    top: 0;
+  }
+  100% {
+    top: calc(100% - 2px);
+  }
+}
+
+.scan-beam-down {
+  animation: scan-beam-vertical 2.1s ease-in-out infinite alternate;
+}
+
+.scan-line-down {
+  animation: scan-line-vertical 2.1s ease-in-out infinite alternate;
+}
+
+.scan-beam-up {
+  animation: scan-beam-vertical 2.1s ease-in-out infinite alternate-reverse;
+}
+
+.scan-line-up {
+  animation: scan-line-vertical 2.1s ease-in-out infinite alternate-reverse;
 }
