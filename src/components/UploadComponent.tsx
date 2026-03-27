@@ -17,6 +17,14 @@ const DEFAULT_ERROR_MESSAGE =
   "Prediction failed. Please try again with a clear leaf image.";
 
 const REQUEST_TIMEOUT_MS = Number(import.meta.env.VITE_PREDICT_TIMEOUT_MS ?? 180_000);
+const PREDICT_ENDPOINT = `${API_BASE_URL}/api/predict`;
+
+const getCorsDebugContext = (): string => {
+  if (typeof window === "undefined") {
+    return `Frontend origin: unknown. API endpoint: ${PREDICT_ENDPOINT}.`;
+  }
+  return `Frontend origin: ${window.location.origin}. API endpoint: ${PREDICT_ENDPOINT}.`;
+};
 
 const getFriendlyApiError = (raw: string): string => {
   try {
@@ -88,7 +96,7 @@ const getRequestErrorMessage = (err: unknown): string => {
     return "Prediction timed out. Please try again with a smaller or clearer image.";
   }
   if (err instanceof TypeError) {
-    return "Cannot reach prediction server. Check that backend is running and CORS is configured.";
+    return `Cannot reach prediction server. This is often a CORS block or backend outage. ${getCorsDebugContext()}`;
   }
   if (err instanceof Error && err.message.trim()) {
     return err.message.trim();
