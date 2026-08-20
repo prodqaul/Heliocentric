@@ -1,0 +1,49 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create, update: if isOwner(userId)
+        && request.resource.data.keys().hasAll(['name', 'email', 'phone', 'location'])
+        && request.resource.data.name is string
+        && request.resource.data.email is string
+        && request.resource.data.phone is string
+        && request.resource.data.location is string;
+    }
+
+    match /scans/{scanId} {
+      // Guests and signed-in users can create scan records.
+      allow create: if
+        request.resource.data.keys().hasAll([
+          'name', 'phone', 'location', 'fileName', 'prediction',
+          'confidence', 'disease', 'description', 'cause', 'treatment', 'severity'
+        ])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.phone is string
+        && request.resource.data.phone.size() > 0
+        && request.resource.data.location is string
+        && request.resource.data.location.size() > 0
+        && request.resource.data.confidence is number
+        && (
+          !('userId' in request.resource.data)
+          || request.resource.data.userId == null
+          || (isSignedIn() && request.resource.data.userId == request.auth.uid)
+        );
+
+      // Users can only read their own linked scans.
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+
+      allow update, delete: if false;
+    }
+  }
+}

@@ -1,5 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
 import { useDropzone } from "react-dropzone";
+import { authHeaders } from "../services/auth";
+import type { AppPage, ScanResultPayload } from "../types/scan";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
@@ -91,12 +93,29 @@ const getHttpErrorMessage = (status: number, body: string): string => {
   return DEFAULT_ERROR_MESSAGE;
 };
 
+const isLocalApiUrl = (url: string): boolean => {
+  try {
+    const u = new URL(url.trim());
+    return u.hostname === "localhost" || u.hostname === "127.0.0.1";
+  } catch {
+    return false;
+  }
+};
+
 const getRequestErrorMessage = (err: unknown): string => {
   if (err instanceof DOMException && err.name === "AbortError") {
     return "Prediction timed out. Please try again with a smaller or clearer image.";
   }
   if (err instanceof TypeError) {
-    return `Cannot reach prediction server. This is often a CORS block or backend outage. ${getCorsDebugContext()}`;
+    const deployedButLocalApi =
+      typeof window !== "undefined" &&
+      window.location.hostname !== "localhost" &&
+      window.location.hostname !== "127.0.0.1" &&
+      isLocalApiUrl(API_BASE_URL);
+    const misconfigHint = deployedButLocalApi
+      ? " The frontend is deployed but still points at a local API. In Vercel, set VITE_API_BASE_URL to your public backend URL (for example your Render or Railway URL), then redeploy."
+      : "";
+    return `Cannot reach prediction server. This is often a CORS block, backend outage, or a wrong API URL.${misconfigHint} ${getCorsDebugContext()}`;
   }
   if (err instanceof Error && err.message.trim()) {
     return err.message.trim();
@@ -124,14 +143,23 @@ const normalizePredictionErrorMessage = (message: string): string => {
   return cleaned || DEFAULT_ERROR_MESSAGE;
 };
 
-const UploadComponent: React.FC = () => {
+type UploadComponentProps = {
+  onNavigate: (page: AppPage) => void;
+  embedded?: boolean;
+};
+
+const UploadComponent: React.FC<UploadComponentProps> = ({
+  onNavigate: _onNavigate,
+  embedded = false,
+}) => {
   const [files, setFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
-  const [result, setResult] = useState<any | null>(null);
+  const [result, setResult] = useState<ScanResultPayload | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [scanSaveWarning, setScanSaveWarning] = useState<string | null>(null);
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const cameraStreamRef = useRef<MediaStream | null>(null);
@@ -245,7 +273,7 @@ const UploadComponent: React.FC = () => {
     };
   }, [previews, stopCameraStream]);
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+  const { getRootProps, getInputProps, isDragActive, open: openFilePicker } = useDropzone({
     onDrop,
     accept: { "image/*": [] },
   });
@@ -270,6 +298,9 @@ const UploadComponent: React.FC = () => {
       const res = await fetch(`${API_BASE_URL}/api/predict`, {
         method: "POST",
         body: formData,
+        headers: {
+          ...authHeaders(),
+        },
         signal: controller.signal,
       });
 
@@ -278,14 +309,20 @@ const UploadComponent: React.FC = () => {
         throw new Error(getHttpErrorMessage(res.status, text));
       }
 
-      let apiResult: PredictionResponse;
+      let apiResult: PredictionResponse & {
+        scan_saved?: boolean;
+        scan_save_error?: string;
+      };
       try {
-        apiResult = (await res.json()) as PredictionResponse;
+        apiResult = (await res.json()) as PredictionResponse & {
+          scan_saved?: boolean;
+          scan_save_error?: string;
+        };
       } catch {
         throw new Error("Server returned invalid prediction data.");
       }
 
-      setResult({
+      const nextResult: ScanResultPayload = {
         fileName: files[0]?.name ?? "N/A",
         prediction: apiResult.best_class,
         confidence: apiResult.confidence,
@@ -297,7 +334,16 @@ const UploadComponent: React.FC = () => {
             ? apiResult.treatment
             : ["No treatment guidance available."],
         severity: apiResult.severity ?? "Unknown",
-      });
+      };
+      setResult(nextResult);
+      if (apiResult.scan_saved === false) {
+        setScanSaveWarning(
+          apiResult.scan_save_error ||
+            "Prediction succeeded, but the scan could not be recorded on the server."
+        );
+      } else {
+        setScanSaveWarning(null);
+      }
     } catch (err: unknown) {
       const message = normalizePredictionErrorMessage(getRequestErrorMessage(err));
       setResult(null);
@@ -309,7 +355,9 @@ const UploadComponent: React.FC = () => {
   };
 
   return (
-    <section className="relative px-4 md:px-10 pt-28 pb-12">
+    <section
+      className={`relative px-4 md:px-10 pb-12 ${embedded ? "pt-8" : "pt-28"}`}
+    >
       <div className="absolute inset-0 -z-10 overflow-hidden">
         <div className="absolute -top-28 left-10 h-72 w-72 bg-emerald-700/25 blur-3xl rounded-full" />
         <div className="absolute top-20 right-10 h-72 w-72 bg-green-900/30 blur-3xl rounded-full" />
@@ -381,31 +429,35 @@ const UploadComponent: React.FC = () => {
               className="hidden"
               onChange={handleCameraFileChange}
             />
-            <div className="mt-4 flex items-center gap-3">
-              <div className="h-px flex-1 bg-slate-600/60" />
-              <span className="text-xs font-semibold tracking-[0.25em] text-slate-400">
-                OR
-              </span>
-              <div className="h-px flex-1 bg-slate-600/60" />
-            </div>
-            <div className="mt-4">
-              <button
-                type="button"
-                onClick={handleCameraClick}
-                disabled={isLoading}
-                className={`w-full px-4 py-3 rounded-xl text-white font-medium transition ${
-                  isLoading
-                    ? "bg-slate-500/60 cursor-not-allowed"
-                    : "bg-gradient-to-r from-emerald-700 to-green-600 hover:from-emerald-600 hover:to-green-500"
-                }`}
-              >
-                {files.length > 0 ? "Re-upload from Camera" : "Use Camera"}
-              </button>
-            </div>
-            {cameraError && (
-              <p className="mt-3 text-xs text-amber-300 bg-amber-500/10 border border-amber-400/30 rounded-lg px-3 py-2">
-                {cameraError}
-              </p>
+            {files.length === 0 && (
+              <>
+                <div className="mt-4 flex items-center gap-3">
+                  <div className="h-px flex-1 bg-slate-600/60" />
+                  <span className="text-xs font-semibold tracking-[0.25em] text-slate-400">
+                    OR
+                  </span>
+                  <div className="h-px flex-1 bg-slate-600/60" />
+                </div>
+                <div className="mt-4">
+                  <button
+                    type="button"
+                    onClick={handleCameraClick}
+                    disabled={isLoading}
+                    className={`w-full px-4 py-3 rounded-xl text-white font-medium transition ${
+                      isLoading
+                        ? "bg-slate-500/60 cursor-not-allowed"
+                        : "bg-gradient-to-r from-emerald-700 to-green-600 hover:from-emerald-600 hover:to-green-500"
+                    }`}
+                  >
+                    Use Camera
+                  </button>
+                </div>
+                {cameraError && files.length === 0 && (
+                  <p className="mt-3 text-xs text-amber-300 bg-amber-500/10 border border-amber-400/30 rounded-lg px-3 py-2">
+                    {cameraError}
+                  </p>
+                )}
+              </>
             )}
             {files.length > 0 && (
               <div className="mt-4 text-sm text-slate-300 bg-slate-900/40 border border-slate-700/60 rounded-xl p-3">
@@ -414,33 +466,69 @@ const UploadComponent: React.FC = () => {
                   {files[0].name} · {(files[0].size / 1024).toFixed(2)} KB
                 </p>
                 <p className="text-xs text-slate-400 mt-2">
-                  Use "Re-upload from Camera" to replace this image.
+                  Use "Re-upload" or "Use Camera" to replace this image.
                 </p>
               </div>
+            )}
+            {cameraError && files.length > 0 && (
+              <p className="mt-3 text-xs text-amber-300 bg-amber-500/10 border border-amber-400/30 rounded-lg px-3 py-2">
+                {cameraError}
+              </p>
             )}
           </div>
 
           <div className="lg:col-span-5 flex flex-col gap-5">
-            <div className="bg-white/5 border border-white/10 rounded-3xl p-5 md:p-6 backdrop-blur-xl">
-              <h2 className="text-white text-lg md:text-xl font-semibold">
-                Run AI Analysis
-              </h2>
-              <p className="text-slate-300 text-sm mt-2">
-                We combine classifier output with disease knowledge to provide
-                concise recommendations.
-              </p>
-              <button
-                onClick={handleCheck}
-                disabled={isLoading}
-                className={`mt-5 w-full px-4 py-3 rounded-xl text-white font-medium transition ${
-                  isLoading
-                    ? "bg-slate-500/60 cursor-not-allowed"
-                    : "bg-gradient-to-r from-emerald-700 to-green-600 hover:from-emerald-600 hover:to-green-500"
-                }`}
-              >
-                {isLoading ? "Analyzing..." : "Analyze the image"}
-              </button>
-            </div>
+            {files.length > 0 && (
+              <div className="bg-white/5 border border-white/10 rounded-3xl p-5 md:p-6 backdrop-blur-xl">
+                <h2 className="text-white text-lg md:text-xl font-semibold">
+                  Run AI Analysis
+                </h2>
+                <p className="text-slate-300 text-sm mt-2">
+                  We combine classifier output with disease knowledge to provide
+                  concise recommendations.
+                </p>
+                <div className="mt-5 flex flex-col gap-3">
+                  <button
+                    type="button"
+                    onClick={handleCheck}
+                    disabled={isLoading}
+                    className={`w-full px-4 py-3 rounded-xl text-white font-medium transition ${
+                      isLoading
+                        ? "bg-slate-500/60 cursor-not-allowed"
+                        : "bg-gradient-to-r from-emerald-700 to-green-600 hover:from-emerald-600 hover:to-green-500"
+                    }`}
+                  >
+                    {isLoading ? "Analyzing..." : "Analyze the image"}
+                  </button>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={openFilePicker}
+                      disabled={isLoading}
+                      className={`w-full px-4 py-3 rounded-xl font-medium transition ${
+                        isLoading
+                          ? "bg-slate-500/60 text-white cursor-not-allowed"
+                          : "bg-slate-700/70 text-slate-100 hover:bg-slate-600/70"
+                      }`}
+                    >
+                      Re-upload
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCameraClick}
+                      disabled={isLoading}
+                      className={`w-full px-4 py-3 rounded-xl font-medium transition ${
+                        isLoading
+                          ? "bg-slate-500/60 text-white cursor-not-allowed"
+                          : "bg-slate-700/70 text-slate-100 hover:bg-slate-600/70"
+                      }`}
+                    >
+                      Use Camera
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {errorMessage && !isLoading && (
               <div className="bg-rose-50 text-rose-900 border border-rose-200 rounded-3xl p-5 md:p-6 shadow-2xl">
@@ -538,6 +626,12 @@ const UploadComponent: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {scanSaveWarning && (
+        <div className="fixed bottom-6 left-1/2 z-40 -translate-x-1/2 max-w-md rounded-full border border-amber-400/40 bg-amber-950/90 px-4 py-2 text-sm text-amber-100 shadow-lg">
+          {scanSaveWarning}
+        </div>
+      )}
 
       {isCameraOpen && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center px-4">

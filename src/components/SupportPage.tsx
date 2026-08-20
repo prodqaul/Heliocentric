@@ -15,7 +15,7 @@ const smsLink = `sms:${SUPPORT_CONTACT.phoneNumber}?body=${encodeURIComponent(
   "Hello Climavise Support, I need assistance."
 )}`;
 
-const SupportPage: React.FC = () => {
+const SupportPage: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
   const [isWhatsappModalOpen, setIsWhatsappModalOpen] = useState(false);
   const [name, setName] = useState("");
   const [contactAddress, setContactAddress] = useState("");
@@ -53,7 +53,9 @@ const SupportPage: React.FC = () => {
   };
 
   return (
-    <section className="relative px-4 md:px-10 pt-28 pb-12">
+    <section
+      className={`relative px-4 md:px-10 pb-12 ${embedded ? "pt-8" : "pt-28"}`}
+    >
       <div className="absolute inset-0 -z-10 overflow-hidden">
         <div className="absolute -top-28 left-10 h-72 w-72 bg-emerald-700/25 blur-3xl rounded-full" />
         <div className="absolute top-20 right-10 h-72 w-72 bg-green-900/30 blur-3xl rounded-full" />
